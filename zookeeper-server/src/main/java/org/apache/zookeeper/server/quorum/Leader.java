@@ -470,12 +470,14 @@ public class Leader {
 
         try {
             self.tick.set(0);
+            // 数据加载到内存
             zk.loadData();
 
             leaderStateSummary = new StateSummary(self.getCurrentEpoch(), zk.getLastProcessedZxid());
 
             // Start thread that waits for connection requests from
             // new followers.
+            // 启动线程同步数据给其他从节点
             cnxAcceptor = new LearnerCnxAcceptor();
             cnxAcceptor.start();
 
@@ -654,6 +656,7 @@ public class Leader {
                     }
                     tickSkip = !tickSkip;
                 }
+                // 与从节点进行ping，保持连接
                 for (LearnerHandler f : getLearners()) {
                     f.ping();
                 }
@@ -1313,7 +1316,7 @@ public class Leader {
         if (designatedLeader != self.getId()) {
             allowedToCommit = false;
         }
-        
+        // 构建leader请求处理链，启动
         zk.startup();
         /*
          * Update the election vote here to ensure that all members of the

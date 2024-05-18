@@ -568,6 +568,7 @@ public class QuorumCnxManager {
         InetSocketAddress electionAddr = null;
 
         try {
+            // 提取发送方的serverId信息：sid
             protocolVersion = din.readLong();
             if (protocolVersion >= 0) { // this is a server id and not a protocol version
                 sid = protocolVersion;
@@ -601,6 +602,9 @@ public class QuorumCnxManager {
         authServer.authenticate(sock, din);
         //If wins the challenge, then close the new connection.
         if (sid < self.getId()) {
+            // 如果发送选票的serverId小于当前接收方的serverId，则关闭连接
+            // 为了防止机器之间重复建立socket连接（双向），zk不允许serverId小的连接serverId大的节点
+
             /*
              * This replica might still believe that the connection to sid is
              * up, so we have to shut down the workers before trying to open a
@@ -618,6 +622,7 @@ public class QuorumCnxManager {
             closeSocket(sock);
 
             if (electionAddr != null) {
+                // 当前节点主动连接到serverId较小的节点
                 connectOne(sid, electionAddr);
             } else {
                 connectOne(sid);
@@ -627,6 +632,12 @@ public class QuorumCnxManager {
             LOG.warn("We got a connection request from a server with our own ID. "
                     + "This should be either a configuration error, or a bug.");
         } else { // Otherwise start worker threads to receive data.
+            // 创建并启动了两个线程SendWorker和RecvWorker，用于发送（选票）和接收数据（选票）。
+            // 两个线程相互关联
+            // SendWorker.run while循环从队列中取出数据发送选票。WorkerSender.run()将数据加入到队列
+            // RecvWorker.run 将选票加入到recvQueue中异步处理：等待WorkerReceiver.run进行拉取消费
+            // 其中，SendWorker负责发送数据，RecvWorker负责接收数据。
+            // 通过senderWorkerMap和queueSendMap两个Map对象来维护线程之间的关系和数据的发送队列
             SendWorker sw = new SendWorker(sock, sid);
             RecvWorker rw = new RecvWorker(sock, din, sid, sw);
             sw.setRecv(rw);
@@ -912,6 +923,7 @@ public class QuorumCnxManager {
                         LOG.info("Creating TLS-only quorum server socket");
                         ss = new UnifiedServerSocket(self.getX509Util(), false);
                     } else {
+                        // 选举监听采用BIO，监听选举端口
                         ss = new ServerSocket();
                     }
 
@@ -942,6 +954,7 @@ public class QuorumCnxManager {
                             if (quorumSaslAuthEnabled) {
                                 receiveConnectionAsync(client);
                             } else {
+                                // 处理接收到连接信息
                                 receiveConnection(client);
                             }
                             numRetries = 0;

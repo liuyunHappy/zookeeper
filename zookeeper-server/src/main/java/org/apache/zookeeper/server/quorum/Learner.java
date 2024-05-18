@@ -368,7 +368,26 @@ public class Learner {
     } 
     
     /**
-     * Finally, synchronize our history with the Leader. 
+     * Finally, synchronize our history with the Leader.
+     * 该函数是一个同步函数，用于将当前服务器的状态与领导者的状态进行同步。它接收一个新领导者的Zxid作为参数，并通过一系列步骤来实现同步。
+     * 创建一个QuorumPacket ack，用于向领导者发送确认信息。
+     * 创建一个QuorumPacket qp，用于接收领导者发送的同步信息。
+     * 从新领导者的Zxid中获取时代号，并将其保存在newEpoch变量中。
+     * 创建一个空的QuorumVerifier newLeaderQV，用于保存新领导者的QuorumVerifier。
+     * 判断领导者发送的同步信息的类型，并执行相应的操作：
+     * 如果是DIFF类型，则不需要进行快照，因为事务会同步到任何现有的快照之上。
+     * 如果是SNAP类型，则从领导者获取快照，并清空当前的数据库，然后反序列化快照数据到数据库中。
+     * 如果是TRUNC类型，则需要截断日志到领导者的最后一个Zxid。
+     * 如果是其他类型，则打印错误日志并退出程序。
+     * 根据同步信息的类型，决定是否需要创建快照。
+     * 读取领导者发送的事务信息，并根据事务的Zxid进行相应的处理：
+     * 如果是PROPOSAL类型，则将事务添加到未提交的事务列表中。
+     * 如果是COMMIT类型，则将未提交的事务提交，并从列表中移除。
+     * 如果是INFORM类型，则将事务应用到数据库中。
+     * 如果是UPTODATE类型，则结束循环，并进行一些后续处理。
+     * 如果是NEWLEADER类型，则更新当前服务器的QuorumVerifier，并决定是否需要创建快照。
+     * 向领导者发送确认信息，并更新当前服务器的同步状态。
+     * 根据服务器类型，处理未提交的事务和已提交的事务。
      * @param newLeaderZxid
      * @throws IOException
      * @throws InterruptedException
