@@ -110,9 +110,10 @@ public class QuorumPeerMain {
     {
         QuorumPeerConfig config = new QuorumPeerConfig();
         if (args.length == 1) {
+            // 解析读取配置：zoo.cfg
             config.parse(args[0]);
         }
-
+        // 启动线程定时清理文件
         // Start and schedule the the purge task
         DatadirCleanupManager purgeMgr = new DatadirCleanupManager(config
                 .getDataDir(), config.getDataLogDir(), config
@@ -120,11 +121,13 @@ public class QuorumPeerMain {
         purgeMgr.start();
 
         if (args.length == 1 && config.isDistributed()) {
+            // 分布式集群模式：入口方法，默认为分布式模式？
             runFromConfig(config);
         } else {
             LOG.warn("Either no config or no quorum defined in config, running "
                     + " in standalone mode");
             // there is only server in the quorum -- run as standalone
+            //  单机模式入口方法
             ZooKeeperServerMain.main(args);
         }
     }
